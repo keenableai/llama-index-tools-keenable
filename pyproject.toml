@@ -1,0 +1,51 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "llama-index-tools-keenable"
+version = "0.1.0"
+description = "Keenable web-search and page-fetch tool spec for LlamaIndex. Keyless by default."
+authors = [{ name = "Keenable", email = "hello@keenable.ai" }]
+maintainers = [{ name = "keenableai" }]
+requires-python = ">=3.10,<4.0"
+readme = "README.md"
+license = "MIT"
+keywords = ["llama-index", "llamaindex", "tool", "keenable", "web-search", "fetch", "agents"]
+dependencies = [
+    "llama-index-core>=0.13.0,<0.15",
+    "requests>=2.31",
+]
+
+[project.urls]
+Homepage = "https://keenable.ai"
+Documentation = "https://docs.keenable.ai"
+Repository = "https://github.com/keenableai/llama-index-tools-keenable"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-mock>=3.11",
+    "ruff>=0.11",
+    "mypy>=1.10",
+]
+
+[tool.hatch.build.targets.sdist]
+include = ["llama_index/", "LICENSE", "README.md"]
+exclude = ["**/BUILD"]
+
+[tool.hatch.build.targets.wheel]
+include = ["llama_index/"]
+exclude = ["**/BUILD"]
+
+[tool.llamahub]
+contains_example = false
+import_path = "llama_index.tools.keenable"
+
+[tool.llamahub.class_authors]
+KeenableToolSpec = "keenableai"
+
+[tool.mypy]
+disallow_untyped_defs = true
+ignore_missing_imports = true
+python_version = "3.10"
