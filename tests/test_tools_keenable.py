@@ -106,6 +106,26 @@ def test_base_url_http_loopback_ok(monkeypatch):
 
 
 @pytest.mark.parametrize(
+    "bad_base",
+    [
+        "https://169.254.169.254",  # AWS/GCP metadata, link-local
+        "https://metadata.google.internal",  # GCP metadata host
+        "https://[fe80::1]",  # IPv6 link-local
+        "https://10.0.0.1",  # RFC1918 private
+        "https://192.168.1.1",  # RFC1918 private
+        "https://172.16.0.1",  # RFC1918 private
+        "https://127.0.0.1",  # loopback over https
+        "https://2130706433",  # decimal-encoded loopback
+        "https://0x7f000001",  # hex-encoded loopback
+    ],
+)
+def test_base_url_rejects_private_and_metadata(monkeypatch, bad_base):
+    monkeypatch.setenv("KEENABLE_API_URL", bad_base)
+    with pytest.raises(KeenableError):
+        resolve_base_url()
+
+
+@pytest.mark.parametrize(
     "url",
     [
         "http://localhost/x",
@@ -121,8 +141,30 @@ def test_reject_private_fetch_target(url):
         reject_private_fetch_target(url)
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://2130706433/secret",  # decimal form of 127.0.0.1
+        "http://0x7f000001/secret",  # hex form of 127.0.0.1
+        "http://0177.0.0.1/secret",  # octal-dotted form of 127.0.0.1
+        "http://127.0.0.1./secret",  # trailing dot on IP literal
+        "http://localhost./secret",  # trailing dot on hostname
+        "http://LOCALHOST/secret",  # case
+    ],
+)
+def test_reject_ssrf_bypass_encodings(url):
+    with pytest.raises(KeenableError):
+        reject_private_fetch_target(url)
+
+
 def test_public_fetch_target_allowed():
     reject_private_fetch_target("https://example.com/article")
+    reject_private_fetch_target("https://8.8.8.8/x")  # public numeric IP is fine
+
+
+def test_ipv6_public_address_allowed():
+    # A globally routable IPv6 address must pass the guard.
+    reject_private_fetch_target("https://[2606:4700:4700::1111]/x")
 
 
 def test_resolve_api_key(monkeypatch):
@@ -167,6 +209,49 @@ def test_error_status_mapping(monkeypatch, status, needle):
     assert needle in str(exc.value).lower()
 
 
+@pytest.mark.parametrize("status", [401, 402, 429, 500])
+def test_error_body_redacts_echoed_key(monkeypatch, status):
+    # A server that echoes the X-API-Key in its error body must not leak it into
+    # the KeenableError text — redacted for every status, not just 401.
+    key = "sk-leak-123"
+    _patch(monkeypatch, _FakeResponse(status_code=status, json_body={"message": f"got key={key}"}))
+    with pytest.raises(KeenableError) as exc:
+        keenable_post("/v1/search/public", "/v1/search", {"query": "x"}, key, 30.0)
+    assert key not in str(exc.value)
+    assert "***" in str(exc.value)
+
+
+def test_transport_error_does_not_use_exception_repr(monkeypatch):
+    # Transport errors surface type + message, not the raw repr (which could
+    # carry connection metadata from a wrapped exception).
+    class _Boom(_client.requests.RequestException):
+        def __repr__(self):
+            return "Boom(secret-in-repr)"
+
+    def _raise(*_a, **_k):
+        raise _Boom("connection failed")
+
+    monkeypatch.setattr(_client.requests, "post", _raise)
+    with pytest.raises(KeenableError) as exc:
+        keenable_post("/v1/search/public", "/v1/search", {"query": "x"}, None, 30.0)
+    assert "secret-in-repr" not in str(exc.value)
+    assert "_Boom: connection failed" in str(exc.value)
+
+
+def test_transport_error_redacts_api_key(monkeypatch):
+    # Belt-and-suspenders: if an exception string ever carried the key, redact it.
+    key = "sk-transport-secret-XYZ"
+
+    def _raise(*_a, **_k):
+        raise _client.requests.ConnectionError(f"failed with header key={key}")
+
+    monkeypatch.setattr(_client.requests, "post", _raise)
+    with pytest.raises(KeenableError) as exc:
+        keenable_post("/v1/search/public", "/v1/search", {"query": "x"}, key, 30.0)
+    assert key not in str(exc.value)
+    assert "***" in str(exc.value)
+
+
 def test_non_json_raises(monkeypatch):
     _patch(monkeypatch, _FakeResponse(text="<html>", raise_on_json=True))
     with pytest.raises(KeenableError):
@@ -207,6 +292,16 @@ def test_search_bad_payload_raises(monkeypatch):
     _patch(monkeypatch, _FakeResponse(json_body={"unexpected": True}))
     with pytest.raises(KeenableError):
         KeenableToolSpec().search("q")
+
+
+def test_search_bad_payload_redacts_key(monkeypatch):
+    # A 200 body that lacks a valid `results` but echoes the key must not leak it.
+    key = "sk-echo-in-200-body"
+    _patch(monkeypatch, _FakeResponse(json_body={"results": None, "debug": f"key={key}"}))
+    with pytest.raises(KeenableError) as exc:
+        KeenableToolSpec(api_key=key).search("q")
+    assert key not in str(exc.value)
+    assert "***" in str(exc.value)
 
 
 def test_fetch_returns_document(monkeypatch):
