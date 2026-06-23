@@ -5,8 +5,7 @@ agents. This package provides `KeenableToolSpec`, a LlamaIndex tool spec with
 two tools, `search` and `fetch`, usable from any LlamaIndex agent.
 
 **Keyless by default**: with no API key the keyless public endpoints are used.
-Provide a key to use the authenticated endpoints (required for `mode="realtime"`
-and for higher rate limits).
+Provide a key to use the authenticated endpoints (for higher rate limits).
 
 ## Install
 
