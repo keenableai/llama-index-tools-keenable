@@ -22,8 +22,7 @@ class KeenableToolSpec(BaseToolSpec):
 
     Keyless by default: with no API key the keyless public endpoints are used.
     Provide an API key (constructor arg or the ``KEENABLE_API_KEY`` environment
-    variable) to use the authenticated endpoints, required for ``mode="realtime"``
-    and for higher rate limits.
+    variable) to use the authenticated endpoints (for higher rate limits).
 
     The API endpoint is read from ``KEENABLE_API_URL`` (HTTPS enforced), never a
     function argument, so the model cannot redirect requests.
@@ -42,8 +41,7 @@ class KeenableToolSpec(BaseToolSpec):
         Args:
             api_key: Optional Keenable API key. Falls back to ``KEENABLE_API_KEY``;
                 with no key the keyless public endpoints are used.
-            mode: Default search mode, ``"pro"`` (deeper) or ``"realtime"`` (low
-                latency). ``"realtime"`` requires an API key.
+            mode: Default search mode, ``"pro"`` (default).
             timeout: Per-request timeout in seconds.
 
         """
@@ -71,8 +69,7 @@ class KeenableToolSpec(BaseToolSpec):
             published_before: Only pages published on/before this date (YYYY-MM-DD).
             acquired_after: Only pages indexed on/after this date (YYYY-MM-DD).
             acquired_before: Only pages indexed on/before this date (YYYY-MM-DD).
-            mode: Override the default search mode for this query (``"pro"`` or
-                ``"realtime"``).
+            mode: Override the default search mode for this query (``"pro"``).
 
         Returns:
             A list of Documents, one per result. The text is the result snippet;
