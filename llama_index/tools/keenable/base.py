@@ -9,6 +9,7 @@ from llama_index.core.tools.tool_spec.base import BaseToolSpec
 
 from llama_index.tools.keenable._client import (
     KeenableError,
+    _redact,
     keenable_get,
     keenable_post,
     reject_private_fetch_target,
@@ -92,7 +93,10 @@ class KeenableToolSpec(BaseToolSpec):
         )
         results = data.get("results")
         if not isinstance(results, list):
-            msg = f"Unexpected response from the Keenable search API: {data!r}"
+            msg = (
+                "Unexpected response from the Keenable search API: "
+                f"{_redact(repr(data)[:200], self._api_key)}"
+            )
             raise KeenableError(msg)
 
         documents = []
