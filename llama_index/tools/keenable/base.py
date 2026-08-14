@@ -9,7 +9,6 @@ from llama_index.core.tools.tool_spec.base import BaseToolSpec
 
 from llama_index.tools.keenable._client import (
     KeenableError,
-    _redact,
     keenable_get,
     keenable_post,
     reject_private_fetch_target,
@@ -93,15 +92,19 @@ class KeenableToolSpec(BaseToolSpec):
         )
         results = data.get("results")
         if not isinstance(results, list):
-            msg = (
-                "Unexpected response from the Keenable search API: "
-                f"{_redact(repr(data)[:200], self._api_key)}"
-            )
+            msg = f"Unexpected response from the Keenable search API: {data!r}"
             raise KeenableError(msg)
 
         documents = []
         for result in results:
-            text = result.get("description") or result.get("title") or ""
+            # `snippet` carries the page text; `description` is usually empty, so
+            # reading it first would leave the Document holding just the title.
+            text = (
+                result.get("snippet")
+                or result.get("description")
+                or result.get("title")
+                or ""
+            )
             documents.append(Document(text=text, metadata=dict(result)))
         return documents
 
