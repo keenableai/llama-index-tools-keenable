@@ -17,6 +17,9 @@ from llama_index.tools.keenable._client import (
 )
 
 
+MAX_OBJECTIVE_CHARS = 1000
+
+
 class KeenableToolSpec(BaseToolSpec):
     """Keenable web-search and page-fetch tools for LlamaIndex agents.
 
@@ -104,7 +107,14 @@ class KeenableToolSpec(BaseToolSpec):
         # The ranker scores "{query} (task: {objective})"; retrieval reads only
         # the query. Blank values are not sent.
         if objective and objective.strip():
-            payload["objective"] = objective.strip()
+            objective = objective.strip()
+            if len(objective) > MAX_OBJECTIVE_CHARS:
+                msg = (
+                    f"objective is {len(objective)} characters; the limit is "
+                    f"{MAX_OBJECTIVE_CHARS}. Shorten it to two or three sentences."
+                )
+                raise KeenableError(msg)
+            payload["objective"] = objective
 
         data = keenable_post(
             "/v1/search/public", "/v1/search", payload, self._api_key, self._timeout

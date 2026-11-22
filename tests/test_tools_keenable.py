@@ -295,6 +295,20 @@ def test_search_blank_objective_not_sent(monkeypatch, value):
     assert "objective" not in _Recorder.last["json"]
 
 
+def test_search_overlong_objective_rejected_before_request(monkeypatch):
+    _Recorder.last = {}
+    _patch(monkeypatch, _FakeResponse(json_body={"results": []}))
+    with pytest.raises(KeenableError, match="1000"):
+        KeenableToolSpec().search("q", objective="x" * 1001)
+    assert _Recorder.last == {}
+
+
+def test_search_objective_at_limit_sent(monkeypatch):
+    _patch(monkeypatch, _FakeResponse(json_body={"results": []}))
+    KeenableToolSpec().search("q", objective=" " + "x" * 1000 + " ")
+    assert len(_Recorder.last["json"]["objective"]) == 1000
+
+
 def test_search_text_prefers_snippet_over_empty_description(monkeypatch):
     """The API returns both fields, and `description` is usually the empty one.
 
