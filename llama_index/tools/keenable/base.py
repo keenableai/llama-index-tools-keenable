@@ -74,19 +74,12 @@ class KeenableToolSpec(BaseToolSpec):
             acquired_after: Only pages indexed on/after this date (YYYY-MM-DD).
             acquired_before: Only pages indexed on/before this date (YYYY-MM-DD).
             mode: Override the default search mode for this query (``"pro"``).
-            objective: Optional. Two or three natural sentences, with no
-                field labels and no line breaks, that cover: the exact
-                facts, entities, numbers, dates or names a useful page
-                must contain; task context the query does not state (who,
-                where, when, eligibility, date window); which kinds of
-                sources count or must be excluded; what is already
-                established from earlier steps; and what is still unknown.
-                Every sentence must be self-contained: name the entities,
-                places, dates and figures explicitly, and never refer to
-                'the task', 'the clue', 'the question', 'above' or earlier
-                results. Do not paste the conversation, and do not include
-                personal, confidential or sensitive information. At most
-                1,000 characters.
+            objective: Optional. Use for multi-step or ambiguous searches; omit for
+                simple lookups. In one to three plain sentences, say what the
+                search is for, what the query leaves out (who, where, when,
+                which sources count) and what earlier searches found. Don't
+                restate the question or include personal or confidential
+                details. At most 1,000 characters.
 
         Returns:
             A list of Documents, one per result. The text is the result snippet;
