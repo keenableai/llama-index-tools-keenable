@@ -215,26 +215,9 @@ def keenable_post(
     return _decode(response, api_key)
 
 
-def keenable_get(url: str, params: dict[str, Any], timeout: float) -> dict[str, Any]:
-    """GET the keyless endpoint at ``url`` with query ``params``; return the body."""
-    try:
-        response = requests.get(url, params=params, headers=_headers(None), timeout=timeout)
-    except requests.RequestException as e:
-        raise _transport_error(e, None) from e
-    return _decode(response, None)
-
-
 def keenable_fetch(url: str, api_key: str | None, timeout: float) -> dict[str, Any]:
-    """Read one page; keyed calls use ``POST /v1/fetch``, keyless ``GET /v1/fetch/public``."""
-    if not api_key:
-        page = keenable_get(f"{resolve_base_url()}/v1/fetch/public", {"url": url}, timeout)
-        error = page.get("error")
-        if isinstance(error, dict):
-            status = error.get("status")
-            status = status if isinstance(status, int) else 500
-            _raise_api_error(status, str(error.get("message") or error.get("error") or ""), None)
-        return page
-    data = keenable_post("/v1/fetch", "/v1/fetch", {"urls": [url]}, api_key, timeout)
+    """Read one page with ``POST /v1/fetch``, or ``POST /v1/fetch/public`` without a key."""
+    data = keenable_post("/v1/fetch/public", "/v1/fetch", {"urls": [url]}, api_key, timeout)
     results = data.get("results")
     page = results[0] if isinstance(results, list) and results else None
     if not isinstance(page, dict):

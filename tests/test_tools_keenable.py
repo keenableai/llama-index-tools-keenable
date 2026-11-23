@@ -46,10 +46,6 @@ class _Recorder:
         _Recorder.last = {"method": "POST", "url": url, "json": json, "headers": headers}
         return self._response
 
-    def get(self, url, params=None, headers=None, timeout=None):
-        _Recorder.last = {"method": "GET", "url": url, "params": params, "headers": headers}
-        return self._response
-
     def __init__(self, response):
         self._response = response
 
@@ -63,7 +59,6 @@ def _clean_env(monkeypatch):
 def _patch(monkeypatch, response):
     rec = _Recorder(response)
     monkeypatch.setattr(_client.requests, "post", rec.post)
-    monkeypatch.setattr(_client.requests, "get", rec.get)
 
 
 # --------------------------------------------------------------------------- #
@@ -337,14 +332,21 @@ def _page_body(**page):
 
 
 def test_fetch_returns_document(monkeypatch):
-    _patch(monkeypatch, _FakeResponse(json_body={"url": "https://e.com", "title": "T", "content": "body"}))
+    _patch(monkeypatch, _FakeResponse(json_body=_page_body(title="T", content="body")))
     docs = KeenableToolSpec().fetch("https://e.com")
     assert len(docs) == 1
     assert docs[0].text == "body"
     assert docs[0].metadata["title"] == "T"
-    assert _Recorder.last["method"] == "GET"
+
+
+def test_fetch_keyless_posts_to_public_path(monkeypatch):
+    _patch(monkeypatch, _FakeResponse(json_body=_page_body(content="x")))
+    KeenableToolSpec().fetch("https://e.com")
+    assert _Recorder.last["method"] == "POST"
     assert _Recorder.last["url"].endswith("/v1/fetch/public")
-    assert _Recorder.last["params"] == {"url": "https://e.com"}
+    assert _Recorder.last["json"] == {"urls": ["https://e.com"]}
+    assert "X-API-Key" not in _Recorder.last["headers"]
+    assert _Recorder.last["headers"]["X-Keenable-Title"] == "LlamaIndex"
 
 
 def test_fetch_keyed_path(monkeypatch):
@@ -353,11 +355,13 @@ def test_fetch_keyed_path(monkeypatch):
     KeenableToolSpec().fetch("https://e.com")
     assert _Recorder.last["method"] == "POST"
     assert _Recorder.last["url"].endswith("/v1/fetch")
+    assert not _Recorder.last["url"].endswith("/public")
+    assert _Recorder.last["json"] == {"urls": ["https://e.com"]}
     assert _Recorder.last["headers"]["X-API-Key"] == "secret"
 
 
 def test_fetch_keyless_page_error_raises(monkeypatch):
-    body = {"url": "https://e.com", "error": {"status": 404, "message": "page not found"}}
+    body = {"results": [{"url": "https://e.com", "error": {"status": 404, "message": "page not found"}}]}
     _patch(monkeypatch, _FakeResponse(json_body=body))
     with pytest.raises(KeenableError, match="404.*page not found"):
         KeenableToolSpec().fetch("https://e.com")
