@@ -10,7 +10,7 @@ from llama_index.core.tools.tool_spec.base import BaseToolSpec
 from llama_index.tools.keenable._client import (
     KeenableError,
     _redact,
-    keenable_get,
+    keenable_fetch,
     keenable_post,
     reject_private_fetch_target,
     resolve_api_key,
@@ -133,8 +133,6 @@ class KeenableToolSpec(BaseToolSpec):
             raise KeenableError(msg)
         reject_private_fetch_target(url)
 
-        data = keenable_get(
-            "/v1/fetch/public", "/v1/fetch", {"url": url}, self._api_key, self._timeout
-        )
+        data = keenable_fetch(url, self._api_key, self._timeout)
         text = data.get("content") or ""
         return [Document(text=text, metadata=dict(data))]
