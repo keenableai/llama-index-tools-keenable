@@ -17,6 +17,9 @@ from llama_index.tools.keenable._client import (
 )
 
 
+MAX_OBJECTIVE_CHARS = 1000
+
+
 class KeenableToolSpec(BaseToolSpec):
     """Keenable web-search and page-fetch tools for LlamaIndex agents.
 
@@ -58,6 +61,7 @@ class KeenableToolSpec(BaseToolSpec):
         acquired_after: Optional[str] = None,
         acquired_before: Optional[str] = None,
         mode: Optional[str] = None,
+        objective: Optional[str] = None,
     ) -> List[Document]:
         """
         Search the web with Keenable, a search engine built for AI agents.
@@ -70,6 +74,12 @@ class KeenableToolSpec(BaseToolSpec):
             acquired_after: Only pages indexed on/after this date (YYYY-MM-DD).
             acquired_before: Only pages indexed on/before this date (YYYY-MM-DD).
             mode: Override the default search mode for this query (``"pro"``).
+            objective: Optional. Use for multi-step or ambiguous searches; omit for
+                simple lookups. In one to three plain sentences, say what the
+                search is for, what the query leaves out (who, where, when,
+                which sources count) and what earlier searches found. Don't
+                restate the question or include personal or confidential
+                details. At most 1,000 characters.
 
         Returns:
             A list of Documents, one per result. The text is the result snippet;
@@ -87,6 +97,17 @@ class KeenableToolSpec(BaseToolSpec):
         ):
             if value:
                 payload[field] = value
+        # Ranking uses query and objective together; retrieval reads only the
+        # query. Blank values are not sent.
+        if objective and objective.strip():
+            objective = objective.strip()
+            if len(objective) > MAX_OBJECTIVE_CHARS:
+                msg = (
+                    f"objective is {len(objective)} characters; the limit is "
+                    f"{MAX_OBJECTIVE_CHARS}. Shorten it to two or three sentences."
+                )
+                raise KeenableError(msg)
+            payload["objective"] = objective
 
         data = keenable_post(
             "/v1/search/public", "/v1/search", payload, self._api_key, self._timeout

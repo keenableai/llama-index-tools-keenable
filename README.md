@@ -36,7 +36,9 @@ print(page[0].text)
 ```
 
 `search` accepts optional per-query filters (`site`, `published_after/before`,
-`acquired_after/before`, `mode`) and returns one `Document` per result. `fetch`
+`acquired_after/before`, `mode`, `objective`) and returns one `Document` per result.
+`objective` (optional, at most 1,000 characters) says what the search is for (what the
+query leaves out, what earlier searches found); pass it for multi-step or ambiguous questions; blank values are not sent. Keenable ranks results by `query` and `objective` together; retrieval reads only `query`, so put the words that matter in `query`. `fetch`
 returns the page's main content as markdown. There is no `max_results` argument:
 the API returns a fixed-size result set as-is.
 
